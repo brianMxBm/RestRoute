@@ -1,9 +1,9 @@
 {
   "private": true,
-  "name": "@acme/eslint-config",
+  "name": "@rest-route/eslint-config",
   "version": "1.0.0",
-  "description": "Acme eslint configuration for React Native",
-  "author": "Cedric van Putten <me@bycedric.com>",
+  "description": "Rest Route eslint configuration for React Native",
+  "author": "Brian A Melgar <brian.melgar.mx@gmail.com>",
   "license": "MIT",
   "main": "index.js",
   "files": [

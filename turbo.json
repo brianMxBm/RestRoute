@@ -1,6 +1,6 @@
 {
   "$schema": "https://turborepo.org/schema.json",
-  "pipeline": {
+  "tasks": {
     "lint": {
       "outputs": []
     },
@@ -10,11 +10,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [
-        ".next/**",
-        "build/**",
-        "node_modules/.cache/metro/**"
-      ]
+      "outputs": [".next/**", "build/**", "node_modules/.cache/metro/**"]
     },
     "dev": {
       "cache": false,
