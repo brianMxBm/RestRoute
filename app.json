@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "6c3bd0c4-9604-448d-a1ce-27790aba4199"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.mxp0.restroute"
+    },
+    "owner": "mxp0"
+  }
+}
