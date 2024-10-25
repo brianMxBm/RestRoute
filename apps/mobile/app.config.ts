@@ -3,14 +3,11 @@ For now we're just setting up enviornment variables.
 Refer here: https://docs.expo.dev/workflow/configuration/
 */
 import { type ConfigContext, type ExpoConfig } from '@expo/config';
-import Mapbox from '@rnmapbox/maps';
 import dotenv from 'dotenv';
 
 dotenv.config({
   path: '../../.env',
 });
-
-Mapbox.setAccessToken(process.env.MAPBOX_API_KEY || ''); //TODO: This is for testing. Secrets are NEVER to be stored in app bundle (.env). Binaries are easily accessible. (trust me it takes like 10 mins lol)
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const APP_ENV = process.env.APP_ENV || '';
