@@ -10,16 +10,16 @@ export default function InitialScreen() {
     <View className="flex-1 justify-center">
       <AnimatedCarousel />
       <Button
-        textClassName="text-slate-50 text-center"
+        textClassName="text-slate-950 font-medium text-center text-md"
         onPress={() => router.navigate('/login')}
         text="Get Started"
         className="mt-5 w-96 self-center rounded-full bg-yellow-500 px-2 py-5 "
       />
       <Button
-        textClassName="text-slate-50 text-center max-w-lg"
+        textClassName="text-md font-medium text-center max-w-lg text-gray-50"
         onPress={() => router.navigate('/douche')}
-        text="Create an account"
-        className="mt-5 w-96 self-center rounded-full border-dark-100 border-2 px-2 py-5 "
+        text="Login"
+        className="mt-5 w-96 self-center rounded-full border-dark-100 bg-dark-950 border-2 px-2 py-5 "
       />
     </View>
   );
