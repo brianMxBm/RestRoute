@@ -1,34 +1,78 @@
 import { useSignUp } from '@clerk/clerk-expo';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Stack, useRouter } from 'expo-router';
+import { CountryCode, AsYouType, parsePhoneNumber } from 'libphonenumber-js';
 import { useState } from 'react';
 import { Controller, FieldErrors, useForm } from 'react-hook-form';
 import { View, Text, TouchableOpacity, Keyboard } from 'react-native';
+import { Dropdown } from 'react-native-element-dropdown';
 import Icon from 'react-native-vector-icons/FontAwesome6';
 import { z } from 'zod';
 
+import { Country, CountryData } from '../../../utils/data/CountryData';
 import { colors } from '../../../utils/style/colors';
 import { Button } from '../../components/primitives/Button';
 import { Input } from '../../components/primitives/Input';
 import { Svg } from '../../components/primitives/Svg';
 
-const formSchema = z.object({
-  phoneNumber: z.string({ message: 'Enter a valid phone number' }),
-  email: z.string().optional(),
-});
-
-type Form = z.infer<typeof formSchema>;
-
 export default function SignUpScreen() {
-  const [authMethod, setAuthMethod] = useState<'sms' | 'email'>('email');
+  const [emailAuth, setEmailAuth] = useState(true);
+  const [isFocus, setIsFocus] = useState(false);
+  const [code, setCode] = useState('');
+  const [pendingVerification, setPendingVerification] = useState(false);
 
-  const { isLoaded, signUp, setActive } = useSignUp();
-
+  const { isLoaded, signUp } = useSignUp();
   const router = useRouter();
 
-  const [phoneNumber, setphoneNumber] = useState('');
-  const [pendingVerification, setPendingVerification] = useState(false);
-  const [code, setCode] = useState('');
+  const [country, setCountry] = useState<Country>({
+    name: 'United States',
+    dial_code: '+1',
+    emoji: '🇺🇸',
+    code: 'US',
+    combinedLabel: '🇺🇸 United States (+1)',
+  });
+
+  const formSchema = z.object({
+    //@SEE: This validation schema needs some refinement.
+    phoneNumber: !emailAuth
+      ? z
+          .string()
+          .trim()
+          .refine(
+            (value) => {
+              if (!value) return false;
+              const phoneNumber = parsePhoneNumber(value, {
+                defaultCountry: country.code as CountryCode,
+              });
+              return phoneNumber?.isValid() ?? false;
+            },
+            { message: 'Invalid phone number' }
+          )
+          .transform((value, ctx) => {
+            try {
+              const phoneNumber = parsePhoneNumber(value, {
+                defaultCountry: country.code as CountryCode,
+              });
+              if (!phoneNumber?.isValid()) {
+                ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: 'Invalid phone number format',
+                });
+                return z.NEVER;
+              }
+              return phoneNumber.formatInternational();
+            } catch (error) {
+              console.warn(error);
+            }
+          })
+      : z.string().optional(),
+
+    email: emailAuth
+      ? z.string().email('Please enter a valid email address')
+      : z.string().optional(),
+  });
+
+  type Form = z.infer<typeof formSchema>;
 
   const form = useForm<Form>({
     resolver: zodResolver(formSchema),
@@ -39,10 +83,13 @@ export default function SignUpScreen() {
   });
 
   const onValid = async (data: Form) => {
+    console.warn(data);
     try {
+      if (!data.email && !data.phoneNumber) {
+        throw Error('No email or phone number provided');
+      }
       Keyboard.dismiss();
-
-      console.warn('hey');
+      await onSignUp(emailAuth ? data.email : data.phoneNumber);
     } catch (error) {
       console.warn(error);
     }
@@ -50,55 +97,46 @@ export default function SignUpScreen() {
 
   const onSwitchAuth = () => {
     Keyboard.dismiss();
-    setAuthMethod('sms');
+    setEmailAuth(!emailAuth);
+    form.reset(); // Reset form values on switch
   };
 
   const onError = async (error: FieldErrors<Form>) => {
     console.warn(error);
   };
 
-  // const onSignUpPress = async () => {
-  //   if (!isLoaded) {
-  //     return;
-  //   }
+  const onSignUp = async (authInfo: string) => {
+    try {
+      if (!isLoaded) {
+        return;
+      }
 
-  //   try {
-  //     await signUp({
-  //       phoneNumber,
-  //     });
+      if (emailAuth) {
+        await signUp.create({ emailAddress: authInfo }); // Replace with email input
+        await signUp.prepareEmailAddressVerification({
+          strategy: 'email_code', //@TODO: Look into email deep linking for verification.
+        });
+      } else {
+        await signUp.create({ phoneNumber: authInfo }); // Replace with email input
+        await signUp.preparePhoneNumberVerification({ strategy: 'phone_code' });
+      }
+      setPendingVerification(true);
+    } catch (err: any) {
+      // See https://clerk.com/docs/custom-flows/error-handling
+      // for more info on error handling
+      console.error(JSON.stringify(err, null, 2));
+    }
+  };
 
-  //     await signUp.preparePhoneNumberVerification({ strategy: 'phone_code' });
-
-  //     setPendingVerification(true);
-  //   } catch (err: any) {
-  //     // See https://clerk.com/docs/custom-flows/error-handling
-  //     // for more info on error handling
-  //     console.error(JSON.stringify(err, null, 2));
-  //   }
-  // };
-
-  // const onPressVerify = async () => {
-  //   if (!isLoaded) {
-  //     return;
-  //   }
-
-  //   try {
-  //     const completeSignUp = await signUp.attemptPhoneNumberVerification({
-  //       code,
-  //     });
-
-  //     if (completeSignUp.status === 'complete') {
-  //       await setActive({ session: completeSignUp.createdSessionId });
-  //       router.replace('/');
-  //     } else {
-  //       console.error(JSON.stringify(completeSignUp, null, 2));
-  //     }
-  //   } catch (err: any) {
-  //     // See https://clerk.com/docs/custom-flows/error-handling
-  //     // for more info on error handling
-  //     console.error(JSON.stringify(err, null, 2));
-  //   }
-  // };
+  const formatPhoneNumber = (text: string) => {
+    try {
+      const formatter = new AsYouType({ defaultCountry: country.code as CountryCode });
+      return formatter.input(text);
+    } catch (error) {
+      console.error(error);
+      return text;
+    }
+  };
 
   return (
     <View className="px-5 flex-1 pt-32">
@@ -122,68 +160,114 @@ export default function SignUpScreen() {
         <Text className="text-4xl font-bold">Welcome To RestRoute!</Text>
       </View>
 
-      <Button
-        textClassName="text-md font-medium text-center max-w-lg font-medium text-dark-950"
-        onPress={() => router.navigate('/douche')}
-        leftChild={<Svg size={20} name={'googleLogo'} />}
-        text="Continue with Google"
-        className="mt-5 w-96  flex-row items-center gap-x-5 rounded-full border-gray-400 bg-gray-50 border-1 px-4 py-5 "
-      />
+      {!emailAuth && (
+        <>
+          <View className="w-96 self-center mt-5">
+            <Dropdown
+              onFocus={() => setIsFocus(true)}
+              onBlur={() => setIsFocus(false)}
+              value={country}
+              placeholder={!isFocus ? 'Select item' : '...'}
+              labelField="combinedLabel" // Assuming `combinedLabel` can be used in `CountryData`
+              valueField="dial_code"
+              data={CountryData.map((item) => ({
+                ...item,
+                combinedLabel: `${item.emoji} ${item.name} (${item.dial_code})`,
+              }))}
+              key={'name'}
+              renderItem={(item) => (
+                <View
+                  key={item.code}
+                  style={{
+                    overflow: 'hidden', // Ensure content stays within the item bounds
+                  }}
+                >
+                  <Text style={{ fontSize: 15 }}>{item.combinedLabel}</Text>
+                </View>
+              )}
+              itemContainerStyle={{
+                paddingVertical: 15,
+                paddingHorizontal: 15,
+                overflow: 'hidden',
+              }}
+              iconColor={colors.dark[900]}
+              iconStyle={{
+                height: 25,
+                width: 25,
+              }}
+              activeColor="transparent"
+              showsVerticalScrollIndicator={false}
+              closeModalWhenSelectedItem={true}
+              style={{
+                borderRadius: 9999,
+                borderWidth: 1,
+                overflow: 'hidden',
+                paddingHorizontal: 12,
+                paddingVertical: 12,
+                borderColor: colors.gray[400],
+                backgroundColor: colors.gray[50],
+              }}
+              containerStyle={{
+                borderRadius: 30,
+                marginTop: 5,
+                shadowColor: colors.dark[500],
+                shadowRadius: 5,
+              }}
+              onChange={(item) => {
+                setCountry(item);
+              }}
+            />
+          </View>
+        </>
+      )}
 
-      {authMethod === 'sms' ? (
+      {emailAuth ? (
         <Controller
           control={form.control}
-          name="phoneNumber"
+          name="email"
           render={({ field, formState }) => (
             <Input
-              maxLength={40}
+              autoCapitalize={'none'}
               value={field.value}
-              showError={true}
               className="w-96 self-center"
-              classNameInputContainer="mt-5 flex-row items-center rounded-full border-gray-400 bg-gray-50 border-1 px-4 py-5"
-              hasError={!!formState.errors.phoneNumber}
-              errorMessage={form.formState.errors.phoneNumber?.message}
+              classNameInputContainer="mt-5 rounded-full border-gray-400 bg-gray-50 px-4 py-5 border-1"
+              hasError={!!formState.errors.email}
+              errorMessage={formState.errors.email?.message}
               onChangeText={field.onChange}
-              textContentType="telephoneNumber"
-              autoCapitalize="none"
-              autoCorrect={false}
+              placeholder="Email address"
               placeholderTextColor={colors.gray[600]}
-              placeholder="Phone number"
-              returnKeyType="done"
-              keyboardType="number-pad"
+              keyboardType="email-address"
             />
           )}
         />
       ) : (
         <Controller
           control={form.control}
-          name="email"
+          name="phoneNumber"
           render={({ field, formState }) => (
             <Input
               value={field.value}
-              showError={true}
               className="w-96 self-center"
-              classNameInputContainer="mt-5 flex-row items-center rounded-full border-gray-400 bg-gray-50 border-1 px-4 py-5"
-              hasError={!!formState.errors.email}
-              errorMessage={form.formState.errors.email?.message}
-              onChangeText={field.onChange}
-              textContentType="emailAddress"
-              autoCapitalize="none"
-              autoCorrect={false}
+              classNameInputContainer="mt-5 rounded-full border-gray-400 bg-gray-50 px-4 py-5 border-1"
+              hasError={!!formState.errors.phoneNumber}
+              errorMessage={formState.errors.phoneNumber?.message}
+              onChangeText={(text) => {
+                const formattedNumber = formatPhoneNumber(text);
+                field.onChange(formattedNumber);
+              }}
+              placeholder="Phone number"
               placeholderTextColor={colors.gray[600]}
-              placeholder="Email address"
-              returnKeyType="done"
-              keyboardType="default"
+              keyboardType="phone-pad"
             />
           )}
         />
       )}
 
       <Button
-        textClassName="text-md font-medium text-center max-w-lg text-gray-50"
+        textClassName="text-md font-medium text-center text-dark-95 max-w-lg "
         onPress={() => form.handleSubmit(onValid, onError)()}
         text="Continue"
-        className="mt-5 w-96 self-center rounded-full border-dark-100 bg-dark-500 border-2 px-2 py-5 "
+        className="mt-5 w-96 self-center rounded-full bg-yellow-500  px-2 py-5 border-gray-400 "
       />
 
       <View className="flex-row items-center mt-4 ">
@@ -192,23 +276,13 @@ export default function SignUpScreen() {
         <View className="flex-1 h-px bg-gray-300" />
       </View>
 
-      {authMethod === 'sms' ? (
-        <Button
-          textClassName="text-md font-medium text-center max-w-lg font-medium text-dark-950"
-          onPress={() => onSwitchAuth()}
-          text="Continue with Email"
-          leftChild={<Icon size={20} name="envelope" />}
-          className="mt-5 w-96 flex-row items-center gap-x-5 rounded-full border-gray-400 bg-gray-50 border-1 px-2 py-5 "
-        />
-      ) : (
-        <Button
-          textClassName="text-md font-medium text-center max-w-lg font-medium text-dark-950"
-          onPress={() => onSwitchAuth()}
-          text="Continue with Number"
-          leftChild={<Icon size={20} name="phone" />}
-          className="mt-5 w-96 flex-row items-center gap-x-5 rounded-full border-gray-400 bg-gray-50 border-1 px-2 py-5 "
-        />
-      )}
+      <Button
+        textClassName="text-md font-medium text-center max-w-lg text-dark-950"
+        onPress={onSwitchAuth}
+        text={`Continue with ${emailAuth ? 'Phone' : 'Email'}`}
+        leftChild={<Icon size={20} name={emailAuth ? 'phone' : 'envelope'} />}
+        className="mt-5 w-96 flex-row items-center gap-x-5 rounded-full border-gray-400 border-1 bg-gray-50 px-2 py-5"
+      />
 
       <Button
         textClassName="text-md font-medium text-center max-w-lg font-medium text-dark-950"
@@ -220,24 +294,3 @@ export default function SignUpScreen() {
     </View>
   );
 }
-
-/*
-  {!pendingVerification && (
-        <>
-          <Input
-            className="w-10/12 rounded-full border-0"
-            autoCapitalize="none"
-            value={phoneNumber}
-            placeholder="Email..."
-            onChangeText={(phoneNumber) => setphoneNumber(phoneNumber)}
-          />
-        </>
-      )}
-      {pendingVerification && (
-        <>
-          <TextInput value={code} placeholder="Code..." onChangeText={(code) => setCode(code)} />
-          <Button title="Verify Email" onPress={onPressVerify} />
-        </>
-      )}
-
-*/
