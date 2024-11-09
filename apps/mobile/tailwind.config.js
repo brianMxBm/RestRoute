@@ -8,7 +8,11 @@ module.exports = {
   presets: [require('nativewind/preset')],
   theme: {
     colors,
-    extend: {},
+    extend: {
+      borderWidth: {
+        1: '1px', // Adding a 1px border width
+      },
+    },
   },
   plugins: [],
 };
