@@ -23,6 +23,9 @@ export type ButtonProps = VariantProps<typeof buttonStyles> &
     textClassName?: string;
     onPress: TouchableOpacityProps;
     text?: string;
+    //@SEE: ooooh technical debt FTW. Change this.
+    leftChild?: React.ReactElement;
+    rightChild?: React.ReactElement;
   };
 
 export const Button = ({
@@ -41,6 +44,7 @@ export const Button = ({
       disabled={disabled ?? loading}
     >
       <View className={twMerge(cx(buttonStyles({ className, disabled, preset })))}>
+        {props.leftChild}
         {loading ? (
           <ActivityIndicator />
         ) : (
@@ -48,6 +52,7 @@ export const Button = ({
             {text && <Text className={twMerge(cx(props.textClassName))}>{text}</Text>}
           </View>
         )}
+        {props.rightChild}
       </View>
     </TouchableOpacity>
   );
