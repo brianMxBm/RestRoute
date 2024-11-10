@@ -1,38 +1,16 @@
-import { useSignUp } from '@clerk/clerk-expo';
-import { SCREEN_WIDTH } from '@gorhom/bottom-sheet';
-import { Stack, router, useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  TouchableOpacity,
-  View,
-  Text,
-  ScrollView,
-  SafeAreaView,
-  Keyboard,
-  TextInput,
-} from 'react-native';
+import { isClerkAPIResponseError, useSignUp } from '@clerk/clerk-expo';
+import { Stack, router } from 'expo-router';
+import { useRef, useState } from 'react';
+import { TouchableOpacity, View, Text, ScrollView, SafeAreaView } from 'react-native';
 import { OtpInput, OtpInputRef } from 'react-native-otp-entry';
 import Icon from 'react-native-vector-icons/FontAwesome6';
 
 import { colors } from '../../../utils/style/colors';
 import { Button } from '../../components/primitives/Button';
-
-const CustomHeader = () => {
-  const router = useRouter();
-
-  return (
-    <SafeAreaView>
-      <View className="flex-row items-center justify-between  px-6">
-        <TouchableOpacity onPress={() => router.back()} className=" justify-center">
-          <Icon name="chevron-left" size={25} />
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  );
-};
+import { Header } from '../../components/primitives/Header';
 
 export default function VerifyOTPScreen() {
-  const [otpError, setOtpErorr] = useState<string>();
+  const [otpError, setOtpError] = useState<string>();
   const OTPInputRef = useRef<OtpInputRef>(null);
 
   const { signUp } = useSignUp();
@@ -50,10 +28,23 @@ export default function VerifyOTPScreen() {
 
       router.navigate('/verify');
     } catch (error) {
-      setOtpErorr('Invalid code');
+      if (isClerkAPIResponseError(error)) {
+        //@TODO: This should probably be a helper function
+        switch (error.errors[0].code) {
+          case 'verification_expired':
+            setOtpError('This verification has expired. Please request a new code.');
+            break;
+          case 'invalid_verification':
+            setOtpError('The code you entered is invalid. Please try again.');
+            break;
+          default:
+            setOtpError('An unexpected error occurred. Please try again.');
+        }
+      }
       console.error(JSON.stringify(error, null, 2)); //@TODO: Handle errors and render them
     }
   };
+
   return (
     <>
       <SafeAreaView>
@@ -61,7 +52,16 @@ export default function VerifyOTPScreen() {
           options={{
             headerTransparent: true,
             headerShown: true,
-            header: () => <CustomHeader />,
+            header: () => (
+              <Header
+                classNameHeaderContainer="px-6"
+                leftHeader={
+                  <TouchableOpacity onPress={() => router.back()} className=" justify-center">
+                    <Icon name="chevron-left" size={25} />
+                  </TouchableOpacity>
+                }
+              />
+            ),
           }}
         />
       </SafeAreaView>
@@ -98,7 +98,7 @@ export default function VerifyOTPScreen() {
               }}
             />
 
-            <Text>hey</Text>
+            <Text className="text-red-400 font-bold">{otpError}</Text>
           </View>
 
           <Button
