@@ -1,13 +1,13 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, useWindowDimensions, FlatList, Animated, ViewToken } from 'react-native';
 
-import { Icon, IconName } from '../../../components/primitives/Svg';
+import { Svg, IconName } from '../../../components/primitives/Svg';
 
 const OnboardingSlides: { title: string; type: IconName; description: string }[] = [
   {
     title: 'Welcome to RestRoute',
     type: 'map',
-    description: 'Find restrooms nearby',
+    description: 'Restrooms anywhere, anytime, everywhere',
   },
   {
     title: 'Rate & Review',
@@ -40,9 +40,8 @@ export default function AnimatedCarousel() {
   const ITEM_WIDTH = width * 0.9;
 
   const renderItem = ({ item }: { item: OnboardingSlideType }) => (
-    <View className="w-[90vw] h-3/4 flex justify-center self-center">
-      <Icon size={350} name={item.type} />
-      <Text className="text-center  text-xl font-bold text-pretty mb-2">{item.description}</Text>
+    <View className="w-[90vw] flex justify-center self-center">
+      <Svg size={350} name={item.type} />
     </View>
   );
 
@@ -61,8 +60,8 @@ export default function AnimatedCarousel() {
         onViewableItemsChanged={onItemsChange}
         horizontal
         ref={flashListRef}
-        pagingEnabled
         viewabilityConfig={viewConfigRef}
+        pagingEnabled
         showsHorizontalScrollIndicator={false}
         snapToInterval={ITEM_WIDTH}
         decelerationRate="fast"
@@ -73,7 +72,7 @@ export default function AnimatedCarousel() {
         })}
       />
 
-      <View className="flex-row mb-4 gap-x-5">
+      <View className="flex-row mb-20  gap-x-5">
         {OnboardingSlides.map((slide, index) => {
           const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
 
@@ -102,17 +101,19 @@ export default function AnimatedCarousel() {
         style={{
           opacity: scrollHorizontal.interpolate({
             inputRange: [
-              (currentIndex - 1) * ITEM_WIDTH - 0.5,
+              (currentIndex - 1) * ITEM_WIDTH - 1, // Start fading in earlier
               currentIndex * ITEM_WIDTH,
-              (currentIndex + 1) * ITEM_WIDTH + 0.5,
+              (currentIndex + 1) * ITEM_WIDTH + 1, // Start fading out later
             ],
             outputRange: [0, 1, 0],
-            extrapolate: 'extend',
+            extrapolate: 'clamp', // Keeps the opacity within the range
           }),
         }}
       >
         <Text className="text-4xl font-semibold">{OnboardingSlides.at(currentIndex)?.title}</Text>
-        <Text className="text-lg font-medium"> Restrooms anywhere, anytime, everywhere</Text>
+        <Text className="text-lg font-medium">
+          {OnboardingSlides.at(currentIndex)?.description}
+        </Text>
       </Animated.View>
     </View>
   );

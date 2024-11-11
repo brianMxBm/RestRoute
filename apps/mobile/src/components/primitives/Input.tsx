@@ -12,6 +12,7 @@ export type InputProps = TextInputProps & {
   leftInputIcon?: React.ReactNode;
   classNameInputContainer?: string;
   classNameInput?: string;
+  classNameErrorContainer?: string;
   headerText?: string;
   regexPattern?: RegExp;
   showError?: boolean;
@@ -68,9 +69,11 @@ export const Input = forwardRef((props: InputProps, ref: Ref<TextInput>) => {
       </View>
 
       {props.showError && (
-        <Label size={'base'} error={props.hasError}>
-          {props.errorMessage}
-        </Label>
+        <View className={props.classNameErrorContainer}>
+          <Label size={'base'} error={props.hasError}>
+            {props.errorMessage}
+          </Label>
+        </View>
       )}
     </View>
   );
