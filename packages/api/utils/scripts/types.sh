@@ -1,0 +1,1 @@
+# @TODO: Setup a script that automates the process of pulling latest types from suapabse

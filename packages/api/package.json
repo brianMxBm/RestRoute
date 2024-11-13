@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "name": "@rest-route/api",
+  "version": "1.0.0",
+  "description": "Rest Route API configuration for React Native",
+  "author": "Brian A Melgar <brian.melgar.mx@gmail.com>",
+  "scripts": {
+    "lint": "eslint . --fix",
+    "tsc": "tsc --noEmit"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@supabase/supabase-js": "2.43.5",
+    "axios": "1.7.2",
+    "dotenv": "^16.4.5"
+  }
+}
