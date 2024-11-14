@@ -1,4 +1,4 @@
-import { isClerkAPIResponseError, useSignUp } from '@clerk/clerk-expo';
+import { isClerkAPIResponseError, useSignIn, useSignUp } from '@clerk/clerk-expo';
 import { Stack, router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { TouchableOpacity, View, Text, ScrollView, SafeAreaView } from 'react-native';
@@ -12,21 +12,25 @@ import { Header } from '../../components/primitives/Header';
 export default function VerifyOTPScreen() {
   const [otpError, setOtpError] = useState<string>();
   const OTPInputRef = useRef<OtpInputRef>(null);
-
-  const { signUp } = useSignUp();
+  const { signUp, setActive, isLoaded } = useSignUp();
 
   const isPhoneVerification = !!signUp?.phoneNumber;
 
   const onVerifyCode = async (pin: string) => {
-    console.warn(signUp);
     try {
-      if (isPhoneVerification) {
-        await signUp.attemptPhoneNumberVerification({ code: pin });
-      } else {
-        await signUp?.attemptEmailAddressVerification({ code: pin });
+      if (!isLoaded) {
+        return;
       }
 
-      router.navigate('/verify');
+      const result = isPhoneVerification
+        ? await signUp?.attemptPhoneNumberVerification({ code: pin })
+        : await signUp?.attemptEmailAddressVerification({ code: pin });
+
+      if (result?.createdSessionId) {
+        setActive({
+          session: result.createdSessionId,
+        });
+      }
     } catch (error) {
       if (isClerkAPIResponseError(error)) {
         //@TODO: This should probably be a helper function
