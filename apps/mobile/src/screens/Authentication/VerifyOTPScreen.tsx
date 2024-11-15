@@ -1,4 +1,5 @@
 import { isClerkAPIResponseError, useSignIn, useSignUp } from '@clerk/clerk-expo';
+import { createUser } from '@rest-route/api/src/mutations/createUser';
 import { Stack, router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { TouchableOpacity, View, Text, ScrollView, SafeAreaView } from 'react-native';
@@ -26,10 +27,13 @@ export default function VerifyOTPScreen() {
         ? await signUp?.attemptPhoneNumberVerification({ code: pin })
         : await signUp?.attemptEmailAddressVerification({ code: pin });
 
-      if (result?.createdSessionId) {
+      if (result?.createdSessionId && result.createdUserId) {
+        //TODO: This isn't needed. Refactor this
         setActive({
           session: result.createdSessionId,
         });
+
+        createUser(result.createdUserId);
       }
     } catch (error) {
       if (isClerkAPIResponseError(error)) {
