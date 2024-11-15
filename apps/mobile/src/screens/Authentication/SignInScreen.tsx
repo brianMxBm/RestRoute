@@ -1,18 +1,12 @@
-import { useSignUp } from '@clerk/clerk-expo';
+import { useOAuth, useSignUp } from '@clerk/clerk-expo';
 import { zodResolver } from '@hookform/resolvers/zod';
+import * as Linking from 'expo-linking';
 import { Stack, useRouter } from 'expo-router';
+import { maybeCompleteAuthSession } from 'expo-web-browser';
 import { CountryCode, AsYouType, parsePhoneNumber } from 'libphonenumber-js';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Controller, FieldErrors, useForm } from 'react-hook-form';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Keyboard,
-  ScrollView,
-  SafeAreaView,
-  Dimensions,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Keyboard, ScrollView, SafeAreaView } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import Icon from 'react-native-vector-icons/FontAwesome6';
 import { z } from 'zod';
@@ -23,6 +17,11 @@ import { Button } from '../../components/primitives/Button';
 import { Header } from '../../components/primitives/Header';
 import { Input } from '../../components/primitives/Input';
 import { Svg } from '../../components/primitives/Svg';
+import { useWarmUpBrowser } from '../../hooks/useWarmUpBrowser';
+
+maybeCompleteAuthSession();
+
+//@TODO: There's a huge oversight here, if the user logs out and attempts to sign in again clerk doesn't allow it. Look into configurations on dashboard.
 
 export default function SignUpScreen() {
   const [emailAuth, setEmailAuth] = useState(true);
@@ -35,7 +34,9 @@ export default function SignUpScreen() {
     combinedLabel: '🇺🇸 United States (+1)',
   });
 
+  useWarmUpBrowser();
   const { isLoaded, signUp } = useSignUp();
+  const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
   const router = useRouter();
 
   const formSchema = z.object({
@@ -108,6 +109,23 @@ export default function SignUpScreen() {
     }
   };
 
+  const onOAuthPress = useCallback(async () => {
+    //@TODO: Come back and finalize this flow, Google API isn't listing the correct information in the webview
+    try {
+      const { createdSessionId, setActive } = await startOAuthFlow({
+        redirectUrl: Linking.createURL('/dashboard', { scheme: 'rest-routeDev' }), //@TODO: This scheme needs to change for production
+      });
+
+      if (createdSessionId) {
+        setActive!({ session: createdSessionId });
+      } else {
+        // Use signIn or signUp for next steps such as MFA
+      }
+    } catch (err) {
+      console.error(JSON.stringify(err, null, 2));
+    }
+  }, []);
+
   const onSwitchAuth = () => {
     Keyboard.dismiss();
     setEmailAuth(!emailAuth);
@@ -177,7 +195,7 @@ export default function SignUpScreen() {
         <View className={`${!emailAuth && 'mt-5'}`}>
           {!emailAuth && (
             <View className="w-full">
-              <Dropdown
+              <Dropdown //@TODO: Abstract this to a component.
                 onFocus={() => setIsFocus(true)}
                 onBlur={() => setIsFocus(false)}
                 value={country}
@@ -299,7 +317,7 @@ export default function SignUpScreen() {
 
           <Button
             textClassName="text-md font-medium text-center max-w-lg text-dark-950"
-            onPress={() => console.warn('Login To Google')} //@TODO: Implment Webview here via clerk for auth.
+            onPress={() => onOAuthPress()} //@TODO: Pass in param to dynamically have a single function for OAuth
             leftChild={<Svg size={20} name="googleLogo" />}
             text="Continue with Google"
             className="mt-5 w-96 flex-row items-center gap-x-5 rounded-full border-gray-400 bg-gray-50 border-1 px-2 py-5"
