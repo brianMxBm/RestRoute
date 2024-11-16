@@ -21,6 +21,7 @@ export interface Colors {
   yellow: Shades;
   gray: Shades;
   red: Shades;
+  blue: Shades;
   transparent: string;
 }
 
@@ -67,6 +68,20 @@ export const colors: Colors = {
     800: '#991b1b',
     900: '#7f1d1d',
     950: '#450a0a',
+  },
+
+  blue: {
+    50: '#f0f9ff',
+    100: '#e0f2fe',
+    200: '#bae6fd',
+    300: '#7dd3fc',
+    400: '#38bdf8',
+    500: '#1066d6',
+    600: '#0284c7',
+    700: '#0369a1',
+    800: '#075985',
+    900: '#0c4a6e',
+    950: '#082f49',
   },
 
   gray: {
