@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "@rest-route",
+  "name": "rest-route",
   "version": "1.0.0",
   "main": "index",
   "scripts": {
@@ -29,6 +29,7 @@
     "eas-cli": "12.5.4",
     "expo": "^51.0.17",
     "expo-constants": "~16.0.2",
+    "@react-native-community/datetimepicker":"8.2.0",
     "expo-crypto": "~13.0.2",
     "expo-dev-client": "~4.0.19",
     "expo-linking": "~6.3.1",
@@ -57,6 +58,7 @@
   },
   "devDependencies": {
     "@rest-route/eslint-config": "workspace:*",
+    "@rest-route/api": "workspace:*",
     "@babel/core": "^7.24.5",
     "@types/react": "~18.2.79",
     "@types/react-dom": "~18.2.25",
