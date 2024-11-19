@@ -7,26 +7,11 @@ import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { ExpoSecureStoreClerkAdapter } from '../../utils/auth/auth-service';
+import { SessionProvider } from '../providers/Auth/SessionProvider';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
 const InitialLayout = () => {
-  const { isLoaded, isSignedIn } = useAuth();
-  const segments = useSegments();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    const inTabsGroup = segments[0] === '(auth)';
-
-    if (isSignedIn && !inTabsGroup) {
-      router.replace('/home');
-    } else if (!isSignedIn) {
-      router.replace('/initial');
-    }
-  }, [isSignedIn]);
-
   return (
     <Slot
       screenOptions={{
@@ -54,7 +39,9 @@ function RootLayoutNav() {
           <StatusBar style="dark" />
           <BottomSheetModalProvider>
             <BottomSheetModalProvider>
-              <InitialLayout />
+              <SessionProvider>
+                <InitialLayout />
+              </SessionProvider>
             </BottomSheetModalProvider>
           </BottomSheetModalProvider>
         </GestureHandlerRootView>

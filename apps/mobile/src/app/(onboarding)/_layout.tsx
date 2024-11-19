@@ -1,6 +1,6 @@
-import { Stack } from 'expo-router';
+import { Stack } from 'expo-router/stack';
 
-export default function MapLayout() {
+export default function OnboardingLayout() {
   return (
     <Stack
       screenOptions={{
