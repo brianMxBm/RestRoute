@@ -1,17 +1,21 @@
-import { isClerkAPIResponseError, useSignIn, useSignUp } from '@clerk/clerk-expo';
+import { isClerkAPIResponseError, useAuth, useSignUp } from '@clerk/clerk-expo';
 import { createUser } from '@rest-route/api/src/mutations/createUser';
 import { Stack, router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TouchableOpacity, View, Text, ScrollView, SafeAreaView } from 'react-native';
 import { OtpInput, OtpInputRef } from 'react-native-otp-entry';
 import Icon from 'react-native-vector-icons/FontAwesome6';
 
 import { colors } from '../../../utils/style/colors';
+import { formatSecondsAsTimer } from '../../../utils/time/time-service';
 import { Button } from '../../components/primitives/Button';
 import { Header } from '../../components/primitives/Header';
 
 export default function VerifyOTPScreen() {
   const [otpError, setOtpError] = useState<string>();
+  const [counter, setCounter] = useState(300);
+  const { getToken } = useAuth();
+
   const OTPInputRef = useRef<OtpInputRef>(null);
   const { signUp, setActive, isLoaded } = useSignUp();
 
@@ -28,12 +32,15 @@ export default function VerifyOTPScreen() {
         : await signUp?.attemptEmailAddressVerification({ code: pin });
 
       if (result?.createdSessionId && result.createdUserId) {
-        //TODO: This isn't needed. Refactor this
-        setActive({
-          session: result.createdSessionId,
-        });
+        await setActive({ session: result.createdSessionId });
 
-        createUser(result.createdUserId);
+        const token = await getToken();
+
+        if (!token) {
+          throw new Error('Failed to retrieve token');
+        }
+
+        await createUser(token, result.createdUserId);
       }
     } catch (error) {
       if (isClerkAPIResponseError(error)) {
@@ -49,9 +56,54 @@ export default function VerifyOTPScreen() {
             setOtpError('An unexpected error occurred. Please try again.');
         }
       }
-      console.error(JSON.stringify(error, null, 2)); //@TODO: Handle errors and render them
     }
   };
+
+  const handleResendVerificationCode = async () => {
+    try {
+      if (!isLoaded) {
+        return;
+      }
+
+      if (isPhoneVerification) {
+        await signUp?.preparePhoneNumberVerification();
+      } else {
+        await signUp?.prepareEmailAddressVerification();
+      }
+
+      setCounter(300); // Reset the timer
+      setOtpError(undefined); // Clear any previous error
+    } catch (error) {
+      if (isClerkAPIResponseError(error)) {
+        switch (error.errors[0].code) {
+          case 'resend_limit_reached':
+            setOtpError('You have reached the limit for resending codes. Please try again later.');
+            break;
+          default:
+            setOtpError('Failed to resend verification code. Please try again.');
+        }
+      }
+    }
+  };
+
+  useEffect(
+    function startCounter() {
+      const interval = setInterval(() => {
+        setCounter((prev) => prev - 1);
+      }, 1000);
+
+      function clearStartCount() {
+        clearInterval(interval);
+      }
+
+      if (counter === 0) {
+        clearStartCount();
+      }
+
+      return clearStartCount;
+    },
+    [counter]
+  );
 
   return (
     <>
@@ -110,9 +162,10 @@ export default function VerifyOTPScreen() {
           </View>
 
           <Button
+            disabled={counter > 0}
             textClassName="text-md font-medium text-center text-dark-95 max-w-lg"
-            onPress={() => router.navigate('/verify')}
-            text="Resend Code In"
+            onPress={handleResendVerificationCode} // Call the resend handler function
+            text={`Resend Code ${counter > 0 ? `in ${formatSecondsAsTimer(counter)}` : ''}`}
             className="mt-5 w-96 self-center rounded-full bg-yellow-500 px-2 py-5 border-gray-400"
           />
         </View>
