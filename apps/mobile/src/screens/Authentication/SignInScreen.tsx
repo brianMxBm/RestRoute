@@ -1,11 +1,11 @@
-import { useOAuth, useSignUp } from '@clerk/clerk-expo';
+import { isClerkAPIResponseError, useOAuth, useSignUp } from '@clerk/clerk-expo';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as Linking from 'expo-linking';
 import { Stack, useRouter } from 'expo-router';
 import { maybeCompleteAuthSession } from 'expo-web-browser';
 import { CountryCode, AsYouType, parsePhoneNumber } from 'libphonenumber-js';
 import { useCallback, useState } from 'react';
-import { Controller, FieldErrors, useForm } from 'react-hook-form';
+import { Controller, FieldErrors, useForm, useController } from 'react-hook-form';
 import { View, Text, TouchableOpacity, Keyboard, ScrollView, SafeAreaView } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import Icon from 'react-native-vector-icons/FontAwesome6';
@@ -25,6 +25,7 @@ maybeCompleteAuthSession();
 
 export default function SignUpScreen() {
   const [emailAuth, setEmailAuth] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isFocus, setIsFocus] = useState(false);
   const [country, setCountry] = useState<Country>({
     name: 'United States',
@@ -38,7 +39,6 @@ export default function SignUpScreen() {
   const { isLoaded, signUp } = useSignUp();
   const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
   const router = useRouter();
-
   const formSchema = z.object({
     //@SEE: This validation schema needs some refinement.
     phoneNumber: !emailAuth
@@ -90,21 +90,26 @@ export default function SignUpScreen() {
   });
 
   const onValid = async (data: Form) => {
-    console.warn(data);
     try {
+      setLoading(true);
       Keyboard.dismiss();
 
       const authInfo = emailAuth ? data.email : data.phoneNumber;
 
       if (!authInfo) {
-        //@TODO: Handle this error in a cleaner way
+        form.setError(emailAuth ? 'email' : 'phoneNumber', {
+          message: `Please provide a valid ${emailAuth ? 'email' : 'phone number'}.`,
+        });
+        setLoading(false);
         return;
       }
 
-      onSignUp(authInfo);
-
-      router.navigate('/verify');
+      const isSuccess = await onSignUp(authInfo);
+      if (isSuccess) {
+        router.navigate('/verify');
+      }
     } catch (error) {
+      setLoading(false);
       console.warn(error);
     }
   };
@@ -136,23 +141,38 @@ export default function SignUpScreen() {
     console.warn(error);
   };
 
-  const onSignUp = async (authInfo: string) => {
+  const onSignUp = async (authInfo: string): Promise<boolean> => {
     try {
       if (!isLoaded) {
-        return;
+        throw new Error('Clerk is not loaded.');
       }
 
       if (emailAuth) {
-        await signUp.create({ emailAddress: authInfo }); // Replace with email input
-        await signUp.prepareEmailAddressVerification({
-          strategy: 'email_code', //@TODO: Look into email deep linki ng for verification.
-        });
+        await signUp.create({ emailAddress: authInfo });
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       } else {
-        await signUp.create({ phoneNumber: authInfo }); // Replace with email input
+        await signUp.create({ phoneNumber: authInfo });
         await signUp.preparePhoneNumberVerification({ strategy: 'phone_code' });
       }
-    } catch (err: any) {
-      console.error(JSON.stringify(err, null, 2));
+
+      return true;
+    } catch (err) {
+      if (isClerkAPIResponseError(err)) {
+        const errorField = emailAuth ? 'email' : 'phoneNumber';
+
+        switch (err.errors[0]?.code) {
+          case 'form_identifier_exists':
+            form.setError(errorField, {
+              message: `That ${emailAuth ? 'email' : 'phone number'} is already in use`,
+            });
+            break; // Ensure the case doesn't fall through
+        }
+      } else {
+        console.warn('Unknown error:', err);
+      }
+      setLoading(false);
+
+      return false;
     }
   };
 
@@ -295,7 +315,7 @@ export default function SignUpScreen() {
 
           <Button
             textClassName="text-md font-medium text-center text-dark-95 "
-            // onPress={() => router.navigate('/verify')}
+            disabled={loading}
             onPress={() => form.handleSubmit(onValid, onError)()}
             text="Continue"
             className="mt-5 w-96 self-center rounded-full bg-yellow-500 px-2 py-5 border-gray-400"
@@ -310,6 +330,7 @@ export default function SignUpScreen() {
           <Button
             textClassName="text-md font-medium text-center max-w-lg text-dark-950"
             onPress={onSwitchAuth}
+            disabled={loading}
             text={`Continue with ${emailAuth ? 'Phone' : 'Email'}`}
             leftChild={<Icon size={20} name={emailAuth ? 'phone' : 'envelope'} />}
             className="mt-5 w-96 flex-row items-center gap-x-5 rounded-full border-gray-400 border-1 bg-gray-50 px-2 py-5"
@@ -318,6 +339,7 @@ export default function SignUpScreen() {
           <Button
             textClassName="text-md font-medium text-center max-w-lg text-dark-950"
             onPress={() => onOAuthPress()} //@TODO: Pass in param to dynamically have a single function for OAuth
+            disabled={loading}
             leftChild={<Svg size={20} name="googleLogo" />}
             text="Continue with Google"
             className="mt-5 w-96 flex-row items-center gap-x-5 rounded-full border-gray-400 bg-gray-50 border-1 px-2 py-5"
