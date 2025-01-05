@@ -24,14 +24,19 @@ jobs:
         with:
           expo-token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: 📝 Generate Supabase types
+      - name: 📝 Verify Supabase types
         uses: supabase/setup-cli@v1
         with:
           version: latest
       - run: |
           cd packages/api/supabase
           supabase link --project-ref="${{ secrets.SUPABASE_PROJECT_ID }}" --password="${{ secrets.SUPABASE_DB_PASSWORD }}"
-          supabase gen types typescript --linked > types/database.types.ts
+          supabase gen types typescript --linked > temp-types.ts
+          if ! diff -u types/database.types.ts temp-types.ts; then
+            echo "⚠️ Database types are out of sync with schema"
+            exit 1
+          fi
+          rm temp-types.ts
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
