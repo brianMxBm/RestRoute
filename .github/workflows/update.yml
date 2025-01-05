@@ -32,6 +32,8 @@ jobs:
           cd packages/api/supabase
           supabase link --project-ref="${{ secrets.SUPABASE_PROJECT_ID }}" --password="${{ secrets.SUPABASE_DB_PASSWORD }}"
           supabase gen types typescript --linked > types/database.types.ts
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       # - name: 🚀 Create expo update
       #   working-directory: apps/mobile
