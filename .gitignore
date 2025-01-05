@@ -59,3 +59,5 @@ xcuserdata
 
 # VSCode
 .history/
+
+.env

@@ -1,62 +1,51 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { FlashList } from '@shopify/flash-list';
-import { cx } from 'class-variance-authority';
-import { useForm, Controller } from 'react-hook-form';
-import { Text, TouchableOpacity, View } from 'react-native';
-import { twMerge } from 'tailwind-merge';
-import { z } from 'zod';
+import { SCREEN_WIDTH } from '@gorhom/bottom-sheet';
+import { Text, View } from 'react-native';
+import { OtpInput } from 'react-native-otp-entry';
 
 import { BottomSheet, type CustomBottomSheetProps } from './BottomSheet';
 import { colors } from '../../../utils/style/colors';
-import { Input } from '../primitives/Input';
 
-export type ExerciseSearchBottomSheetProps = CustomBottomSheetProps & {
+/*
+@SEE: I think that adding a Zod resolver with the pin being refined with a callback function to verify
+if it's the right code isn't really necessary.
+*/
+
+export type VerificationCodeBottomSheetProps = CustomBottomSheetProps & {
   className?: string;
+  resendPin?: () => void;
 
   //@SEE: Callback function to maintain logic in parent?
 };
 
 //@SEE: Add timeouts to ensure verification isn't spammed
-export const VerificationCodeBottomSheet = (props: ExerciseSearchBottomSheetProps) => {
-  const formSchema = z.object({
-    pin: z.string().refine((value) => {
-      console.warn(value);
-      //@TODO: Async call to verification from clerk
-      return true;
-    }),
-  });
-
-  const onVerifiedCode = (data: Form) => {
-    console.warn('code');
-  };
-
-  type Form = z.infer<typeof formSchema>;
-
-  const form = useForm<Form>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      pin: '',
-    },
-  });
+export const VerificationCodeBottomSheet = (props: VerificationCodeBottomSheetProps) => {
+  const onVerifiedCode = (pin: string) => {};
 
   return (
     <BottomSheet {...props} pressBehavior={'none'} snapPoints={props.snapPoints}>
-      <View className="items-center justify-center">
-        <Controller
-          control={form.control}
-          name="pin"
-          render={({ field, formState }) => (
-            <Input
-              autoCapitalize={'none'}
-              value={field.value}
-              className="w-96 self-center"
-              classNameInputContainer="mt-5 rounded-full border-gray-400 bg-gray-50 px-4 py-5 border-1"
-              hasError={!!formState.errors.pin}
-              errorMessage={formState.errors.pin?.message}
-              onChangeText={field.onChange}
-              placeholderTextColor={colors.gray[600]}
-            />
-          )}
+      <View className="items-center justify-center ">
+        <Text>Enter Pin</Text>
+
+        <OtpInput
+          numberOfDigits={6}
+          onFilled={(pin) => onVerifiedCode(pin)}
+          type="numeric"
+          theme={{
+            containerStyle: {
+              width: SCREEN_WIDTH * 0.85, //@TODO: Change this to use RN screen variable
+            },
+            pinCodeContainerStyle: {
+              borderLeftWidth: 0,
+              borderRightWidth: 0,
+              borderTopWidth: 0,
+            },
+            focusedPinCodeContainerStyle: {
+              borderColor: colors.yellow[500],
+            },
+            filledPinCodeContainerStyle: {
+              borderColor: colors.dark[950],
+            },
+          }}
         />
       </View>
     </BottomSheet>

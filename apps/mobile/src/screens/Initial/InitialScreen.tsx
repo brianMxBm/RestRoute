@@ -10,7 +10,7 @@ export default function InitialScreen() {
     <View className="flex-1 justify-center">
       <AnimatedCarousel />
       <Button
-        textClassName="text-slate-950 font-medium text-center text-md"
+        textClassName="font-medium text-center text-md"
         onPress={() => router.navigate('/login')}
         text="Get Started"
         className="mt-5 w-96 self-center rounded-full bg-yellow-500 px-2 py-5 "

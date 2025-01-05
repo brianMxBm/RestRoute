@@ -1,10 +1,10 @@
 import '../../global.css';
-import { ClerkProvider, ClerkLoaded, useAuth } from '@clerk/clerk-expo';
+import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { Slot, useRouter, useSegments } from 'expo-router';
+import { Slot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Toast from 'react-native-toast-message';
 
 import { ExpoSecureStoreClerkAdapter } from '../../utils/auth/auth-service';
 import { SessionProvider } from '../providers/Auth/SessionProvider';
@@ -41,6 +41,7 @@ function RootLayoutNav() {
             <BottomSheetModalProvider>
               <SessionProvider>
                 <InitialLayout />
+                {/* <Toast config={toastConfig} /> */}
               </SessionProvider>
             </BottomSheetModalProvider>
           </BottomSheetModalProvider>
