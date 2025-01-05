@@ -1,0 +1,25 @@
+name: 'generate-types'
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build: 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Generate and verify types
+        run: |
+          supabase init
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} -p ${{ secrets.SUPABASE_DB_PASSWORD }}
+          supabase gen types typescript --linked > temp-types.ts
+          if ! diff -u packages/api/supabase/types/database.types.ts temp-types.ts; then
+            echo "⚠️ Database types are out of sync with Supabase schema"
+            exit 1
+          fi

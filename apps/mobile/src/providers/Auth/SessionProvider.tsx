@@ -7,6 +7,7 @@ import { View, ActivityIndicator } from 'react-native';
 
 const SessionContext = createContext<{
   session: Session | null;
+  signOut?: () => void;
 }>({
   session: null,
 });
@@ -23,35 +24,38 @@ export function useSessionContext() {
 
 export function SessionProvider(props: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const { isSignedIn, getToken } = useAuth();
+  const { isSignedIn, getToken, signOut: clerkSignOut } = useAuth();
+
   const router = useRouter();
+
+  const signOut = async () => {
+    try {
+      await clerkSignOut();
+    } catch (error) {
+      //@SEE: Add error toasts.
+      console.error('Error signing out:', error);
+    }
+  };
 
   useEffect(() => {
     const initializeSession = async () => {
       try {
         const token = await getToken();
         if (!token && !isSignedIn) {
-          setLoading(false);
           router.replace('/initial');
           return;
         }
 
         const sessionData = await getUserByToken(token || '');
-
         setSession(sessionData);
-        setLoading(false);
-
-        if (!isSignedIn) {
-          router.replace('/initial');
-        }
 
         if (!session?.user.onboarded) {
           router.replace('/onboarding');
-        } else {
-          router.replace('/map');
         }
+
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching session token:', error);
         setLoading(false);
@@ -69,5 +73,7 @@ export function SessionProvider(props: { children: ReactNode }) {
     );
   }
 
-  return <SessionContext.Provider value={{ session }}>{props.children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={{ session, signOut }}>{props.children}</SessionContext.Provider>
+  );
 }

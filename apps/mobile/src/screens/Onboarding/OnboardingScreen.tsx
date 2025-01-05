@@ -17,6 +17,7 @@ import {
   Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome6';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { z } from 'zod';
 
 import { colors } from '../../../utils/style/colors';
@@ -67,6 +68,7 @@ export default function OnboardingScreen() {
       .max(25, { message: 'Last name must be no longer than 25 characters' })
       .regex(/^[A-Za-z\s]+$/, { message: 'Last name should contain only letters' })
       .transform((value) => value.trim().replace(/\s+/g, '')),
+    referralCode: z.string().optional(),
     birthday: z
       .string({ required_error: 'Birthday is required' })
       .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Enter a valid birthday' })
@@ -201,6 +203,32 @@ export default function OnboardingScreen() {
             />
           )}
         />
+        <Controller
+          control={form.control}
+          name="referralCode"
+          render={({ field, formState }) => (
+            <>
+              <Input
+                autoCapitalize="none"
+                value={field.value}
+                className="w-full self-center"
+                classNameInputContainer={`mt-5 rounded-full bg-gray-50 px-4 py-5 border-1 ${formState.errors.lastName ? 'border-red-500' : 'border-gray-400'}`}
+                hasError={!!formState.errors.lastName}
+                errorMessage={formState.errors.lastName?.message}
+                onChangeText={field.onChange}
+                classNameErrorContainer={`ml-2 mt-2 ${!formState.errors.lastName && 'hidden'}`}
+                placeholder="Referal code (optional)"
+                placeholderTextColor={colors.gray[600]}
+                keyboardType="email-address"
+                showError
+              />
+              <View className="ml-2 mt-2 flex flex-row items-center gap-x-1">
+                <Ionicons name="information-circle-outline" size={20} />
+                <Label>What is this?</Label>
+              </View>
+            </>
+          )}
+        />
 
         <Controller
           control={form.control}
@@ -209,7 +237,7 @@ export default function OnboardingScreen() {
             <>
               <TouchableOpacity
                 onPress={toggleDatePicker}
-                className={`flex flex-row justify-between items-center self-center w-full mt-5 rounded-full bg-gray-50 px-4 py-5 border-1  ${formState.errors.birthday ? 'border-red-500' : 'border-gray-400'}`}
+                className={`flex flex-row justify-between items-center self-center w-full mt-3 rounded-full bg-gray-50 px-4 py-5 border-1  ${formState.errors.birthday ? 'border-red-500' : 'border-gray-400'}`}
               >
                 <Text>{birthday.toLocaleDateString()}</Text>
                 <View className=" mr-1">
@@ -291,8 +319,12 @@ export default function OnboardingScreen() {
             <View className="flex-row justify-center mt-6 gap-x-4">
               <Pressable
                 onPress={() => {
-                  setModalVisible(false);
-                  signOut();
+                  try {
+                    setModalVisible(false);
+                    signOut();
+                  } catch (error) {
+                    console.error('error', error);
+                  }
                 }}
                 className="bg-red-500 w-1/2 p-5 rounded-full"
               >

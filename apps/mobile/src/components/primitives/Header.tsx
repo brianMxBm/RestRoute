@@ -1,5 +1,5 @@
 import { cx } from 'class-variance-authority';
-import { SafeAreaView, View } from 'react-native';
+import { SafeAreaView, View, Text } from 'react-native';
 import { twMerge } from 'tailwind-merge';
 
 export type HeaderProps = {
@@ -19,6 +19,7 @@ export const Header = (props: HeaderProps) => {
         )}
       >
         {props.leftHeader}
+        <Text>{props.title}</Text>
         {props.rightHeader}
       </View>
     </SafeAreaView>

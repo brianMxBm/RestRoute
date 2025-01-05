@@ -15,15 +15,12 @@
     "react-native-web": "~0.19.6"
   },
   "devDependencies": {
-    "@acme/eslint-config": "workspace:*",
     "babel-plugin-react-native-web": "^0.19.6",
     "eslint": "^8.34.0",
     "eslint-config-next": "^13.2.1"
   },
   "eslintConfig": {
-    "extends": [
-      "@acme/eslint-config"
-    ],
+ 
     "ignorePatterns": [
       "node_modules",
       ".next",
