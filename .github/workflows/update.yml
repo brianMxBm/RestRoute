@@ -1,0 +1,38 @@
+name: update
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment: next
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - name: 🏗 Setup repository
+        uses: actions/checkout@v3
+
+      - name: 🏗 Setup monorepo 
+        uses: ./.github/actions/setup-monorepo
+        with:
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📝 Generate Supabase types
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: |
+          cd packages/api/supabase
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} -p ${{ secrets.SUPABASE_DB_PASSWORD }}
+          supabase gen types typescript --linked > types/database.types.ts
+
+      # - name: 🚀 Create expo update
+      #   working-directory: apps/mobile
+      #   run: eas update --auto --platform=ios && bunx sentry-expo-upload-sourcemaps dist
