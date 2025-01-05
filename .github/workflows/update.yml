@@ -30,7 +30,7 @@ jobs:
           version: latest
       - run: |
           cd packages/api/supabase
-          supabase link --project-ref="${{ secrets.SUPABASE_PROJECT_ID }}" --password="${{ secrets.SUPABASE_DB_PASSWORD }}"
+          supabase link --project-ref="${{ secrets.SUPABASE_PROJECT_ID }}" --password="${{ secrets.SUPABASE_DB_PASSWORD_DEV }}"
           supabase gen types typescript --linked > temp-types.ts
           if ! diff -u types/database.types.ts temp-types.ts; then
             echo "⚠️ Database types are out of sync with schema"
@@ -39,7 +39,8 @@ jobs:
           rm temp-types.ts
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
+          SUPABASE_DB_PASSWORD_DEV: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}
+          
       # - name: 🚀 Create expo update
       #   working-directory: apps/mobile
       #   run: eas update --auto --platform=ios && bunx sentry-expo-upload-sourcemaps dist
