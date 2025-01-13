@@ -1,8 +1,9 @@
 import { isClerkAPIResponseError, useAuth, useSignUp } from '@clerk/clerk-expo';
 import { createUser } from '@rest-route/api/src/mutations/createUser';
+import { useMutation } from '@tanstack/react-query';
 import { Stack, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { TouchableOpacity, View, Text, ScrollView, SafeAreaView } from 'react-native';
+import { TouchableOpacity, View, Text, ScrollView, SafeAreaView, Keyboard } from 'react-native';
 import { OtpInput, OtpInputRef } from 'react-native-otp-entry';
 import Icon from 'react-native-vector-icons/FontAwesome6';
 
@@ -20,6 +21,27 @@ export default function VerifyOTPScreen() {
   const { signUp, setActive, isLoaded } = useSignUp();
 
   const isPhoneVerification = !!signUp?.phoneNumber;
+  const initialValue = signUp?.emailAddress || signUp?.phoneNumber;
+
+  useEffect(() => {
+    // Keep keyboard up
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      // Force keyboard to show
+      OTPInputRef.current?.focus();
+    });
+
+    return () => {
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
+  const createUserMutaton = useMutation({
+    mutationFn: createUser,
+    onError: (error) => {
+      console.error(error);
+      setOtpError('Failed');
+    },
+  });
 
   const onVerifyCode = async (pin: string) => {
     try {
@@ -40,11 +62,14 @@ export default function VerifyOTPScreen() {
           throw new Error('Failed to retrieve token');
         }
 
-        await createUser(token, result.createdUserId);
+        await createUserMutaton.mutateAsync({
+          jwt: token,
+          clerkId: result.createdUserId,
+        });
       }
     } catch (error) {
       if (isClerkAPIResponseError(error)) {
-        //@TODO: This should probably be a helper function
+        console.log(error);
         switch (error.errors[0].code) {
           case 'verification_expired':
             setOtpError('This verification has expired. Please request a new code.');
@@ -56,6 +81,7 @@ export default function VerifyOTPScreen() {
             setOtpError('An unexpected error occurred. Please try again.');
         }
       }
+      console.log(error);
     }
   };
 
@@ -71,8 +97,8 @@ export default function VerifyOTPScreen() {
         await signUp?.prepareEmailAddressVerification();
       }
 
-      setCounter(300); // Reset the timer
-      setOtpError(undefined); // Clear any previous error
+      setCounter(300);
+      setOtpError(undefined);
     } catch (error) {
       if (isClerkAPIResponseError(error)) {
         switch (error.errors[0].code) {
@@ -130,7 +156,7 @@ export default function VerifyOTPScreen() {
         <View className="items-start max-w-96 gap-y-4">
           <Text className="text-4xl font-bold">Enter 6 Digit OTP</Text>
           <Text className="text-xl font-medium">Enter the code we sent to:</Text>
-          <Text className="text-xl font-medium">818-480-1648</Text>
+          <Text className="text-xl font-medium">{initialValue}</Text>
         </View>
 
         <View className="flex-1 items-center mt-10 ">
