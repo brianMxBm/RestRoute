@@ -1,79 +1,88 @@
 import { useAuth } from '@clerk/clerk-expo';
 import { getUserByToken } from '@rest-route/api/src/queries';
 import { Session } from '@rest-route/api/supabase/types/authType';
-import { useRouter } from 'expo-router';
-import { ReactNode, useState, useEffect, createContext, useContext } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { ReactNode, createContext, useContext, useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 
-const SessionContext = createContext<{
+import { Button } from '../../components/primitives/Button';
+import { Label } from '../../components/primitives/Label';
+
+type SessionContextType = {
   session: Session | null;
-  signOut?: () => void;
-}>({
-  session: null,
-});
+  isLoading: boolean;
+  signOut: () => Promise<void>;
+};
 
-export function useSessionContext() {
-  const sessionContext = useContext(SessionContext);
+const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
-  if (!sessionContext) {
-    throw new Error('useSessionContext must be used within a SessionProvider');
-  }
-
-  return sessionContext;
-}
-
-export function SessionProvider(props: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-
+export function SessionProvider({ children }: { children: ReactNode }) {
   const { isSignedIn, getToken, signOut: clerkSignOut } = useAuth();
 
-  const router = useRouter();
-
-  const signOut = async () => {
-    try {
-      await clerkSignOut();
-    } catch (error) {
-      //@SEE: Add error toasts.
-      console.error('Error signing out:', error);
-    }
-  };
+  const {
+    data: session,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['user', isSignedIn],
+    queryFn: async () => {
+      if (!isSignedIn) return null;
+      const token = await getToken({ template: 'database' });
+      if (!token) return null;
+      return getUserByToken({ jwt: token });
+    },
+    enabled: isSignedIn !== undefined,
+  });
 
   useEffect(() => {
-    const initializeSession = async () => {
-      try {
-        const token = await getToken();
-        if (!token && !isSignedIn) {
-          router.replace('/initial');
-          return;
-        }
+    if (isLoading) return;
 
-        const sessionData = await getUserByToken(token || '');
-        setSession(sessionData);
+    if (!session) {
+      router.replace('/(public)/initial');
+    }
+  }, [session, isLoading]);
 
-        if (!session?.user.onboarded) {
-          router.replace('/onboarding');
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching session token:', error);
-        setLoading(false);
-      }
-    };
-
-    initializeSession();
-  }, [isSignedIn]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center">
-        <ActivityIndicator />
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <Label className="text-lg ">Please check your internet and try again!</Label>
+        <Button
+          textClassName="text-md font-medium text-center text-gray-50 "
+          onPress={() => refetch()}
+          text="Retry?"
+          className="mt-5 w-96 self-center rounded-full bg-dark-900 px-2 py-5"
+        />
       </View>
     );
   }
 
   return (
-    <SessionContext.Provider value={{ session, signOut }}>{props.children}</SessionContext.Provider>
+    <SessionContext.Provider
+      value={{
+        session: session ?? null,
+        isLoading,
+        signOut: clerkSignOut,
+      }}
+    >
+      {children}
+    </SessionContext.Provider>
   );
+}
+
+export function useSessionContext() {
+  const context = useContext(SessionContext);
+  if (!context) {
+    throw new Error('useSessionContext must be used within a SessionProvider');
+  }
+  return context;
 }

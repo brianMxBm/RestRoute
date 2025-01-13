@@ -8,9 +8,17 @@ export default function PublicLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && session?.user.onboarded) {
-      router.replace('/(auth)/');
+    if (isLoading) return;
+
+    if (!session) {
+      // Ensure we're on the initial screen when there's no session
+      router.replace('/(public)/initial');
+      return;
     }
+
+    const route = session.user.onboarded ? '/(public)/' : '/(auth)/onboarding';
+
+    router.replace(route);
   }, [session, isLoading]);
 
   return <Stack screenOptions={{ headerShown: false }} />;
