@@ -6,18 +6,26 @@ import { z } from 'zod';
 const updateUserByIdInput = z.object({
     clerkId: z.string().min(1, 'Clerk ID is required'),
     jwt: z.string().min(1, 'JWT is required'),
+    fullName: z.string().min(1, 'Name is required'),
+    birthday: z.string().min(1, 'Birthday is required'),
+
   });
 
 type UpdateUserByIdType = z.infer<typeof updateUserByIdInput>;
-  
+ 
 
-export const updateUser = async ({clerkId, jwt}: UpdateUserByIdType) => {
-  updateUserByIdInput.parse({clerkId, jwt})
+
+export const updateUser = async ({ clerkId, jwt, fullName, birthday }: UpdateUserByIdType) => {
+
+  updateUserByIdInput.parse({ clerkId, jwt, fullName, birthday });
+
   try {
     const response = await api.post<Tables<'User'>>(
-      `/auth/onboardUser`,
+      `/user/updateUser`,
       {
         clerkId,
+        fullName,
+        birthdate: birthday,
       },
       {
         headers: {

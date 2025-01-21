@@ -2,7 +2,9 @@ import { useAuth } from '@clerk/clerk-expo';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { zodResolver } from '@hookform/resolvers/zod';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { format, isValid } from 'date-fns';
+import { updateUser } from '@rest-route/api/src/mutations/updateUser';
+import { useMutation } from '@tanstack/react-query';
+import { isValid } from 'date-fns';
 import { Stack } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Controller, FieldErrors, useForm } from 'react-hook-form';
@@ -27,12 +29,14 @@ import { Button } from '../../components/primitives/Button';
 import { Header } from '../../components/primitives/Header';
 import { Input } from '../../components/primitives/Input';
 import { Label } from '../../components/primitives/Label';
+import { useSessionContext } from '../../providers/Auth/SessionProvider';
 
 export default function OnboardingScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [birthday, setBirthday] = useState(new Date());
   const { signOut } = useAuth();
+  const { getClerkToken, session } = useSessionContext();
 
   const termsAndConditionsBottomSheetRef = useRef<BottomSheetModal>(null);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -69,30 +73,23 @@ export default function OnboardingScreen() {
       .regex(/^[A-Za-z\s]+$/, { message: 'Last name should contain only letters' })
       .transform((value) => value.trim().replace(/\s+/g, '')),
     referralCode: z.string().optional(),
-    birthday: z
-      .string({ required_error: 'Birthday is required' })
-      .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Enter a valid birthday' })
-      .refine(
-        (date) => {
-          const birthDate = new Date(date);
+    birthday: z.date({ required_error: 'Birthday is required' }).refine(
+      (date) => {
+        // Ensure the date is valid
+        if (!isValid(date)) {
+          return false;
+        }
 
-          // Ensure the date is valid
-          if (!isValid(birthDate)) {
-            return false;
-          }
+        const year = date.getFullYear();
+        if (year < 1900) {
+          return false;
+        }
 
-          // Ensure the year is not before 1900
-          const year = birthDate.getFullYear();
-          if (year < 1900) {
-            return false;
-          }
-
-          // Check if the user is at least 18 years old
-          const age = calculateAge(birthDate);
-          return age >= 13;
-        },
-        { message: 'You must be 13 years or older' }
-      ),
+        const age = calculateAge(date);
+        return age >= 13;
+      },
+      { message: 'You must be 13 years or older' }
+    ),
   });
 
   type Form = z.infer<typeof formSchema>;
@@ -102,8 +99,12 @@ export default function OnboardingScreen() {
     defaultValues: {
       firstName: '',
       lastName: '',
-      birthday: '',
+      birthday: new Date(),
     },
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: updateUser,
   });
 
   const openTermsAndConditionsBottomSheet = () => {
@@ -120,14 +121,30 @@ export default function OnboardingScreen() {
 
   const onValid = async (data: Form) => {
     try {
-      console.warn(data);
+      if (!session?.user.clerkId) {
+        throw new Error('No clerk ID found');
+      }
+
+      const token = await getClerkToken();
+      const isoDate = data.birthday.toISOString();
+
+      const result = await updateUserMutation.mutateAsync({
+        jwt: token,
+        clerkId: session.user.clerkId,
+        fullName: `${data.firstName} ${data.lastName}`,
+        birthday: isoDate,
+      });
+
+      console.log('Update successful:', result);
     } catch (error) {
-      console.error(error); //@TODO: Show some toast here.
+      console.error('Failed to update user:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+      }
     }
   };
 
   const onError = async (error: FieldErrors<Form>) => {
-    //@SEE: Show a toast here.
     console.warn(error);
   };
 
@@ -212,11 +229,11 @@ export default function OnboardingScreen() {
                 autoCapitalize="none"
                 value={field.value}
                 className="w-full self-center"
-                classNameInputContainer={`mt-5 rounded-full bg-gray-50 px-4 py-5 border-1 ${formState.errors.lastName ? 'border-red-500' : 'border-gray-400'}`}
+                classNameInputContainer={`mt-5 rounded-full bg-gray-50 px-4 py-5 border-1 ${formState.errors.referralCode ? 'border-red-500' : 'border-gray-400'}`}
                 hasError={!!formState.errors.lastName}
                 errorMessage={formState.errors.lastName?.message}
                 onChangeText={field.onChange}
-                classNameErrorContainer={`ml-2 mt-2 ${!formState.errors.lastName && 'hidden'}`}
+                classNameErrorContainer={`ml-2 mt-2 ${!formState.errors.referralCode && 'hidden'}`}
                 placeholder="Referal code (optional)"
                 placeholderTextColor={colors.gray[600]}
                 keyboardType="email-address"
@@ -252,12 +269,11 @@ export default function OnboardingScreen() {
                   onChange={(event, date) => {
                     if (date) {
                       handleBirthDate(event, date);
-                      const formattedDate = format(date, 'yyyy-MM-dd'); //@TODO: This conversion shouldn't occur, change it so the schema accepts a date and just convert onVerify
-                      field.onChange(formattedDate);
+                      field.onChange(date); // Pass the Date object directly
                     }
                   }}
                   mode="date"
-                  display="inline" //@SEE: This should be abstracted into a primitive so we don't have to have inline jsx to handle errors.
+                  display="inline"
                 />
               </Animated.View>
               {formState.errors.birthday?.message && (
@@ -271,7 +287,7 @@ export default function OnboardingScreen() {
           )}
         />
 
-        <View className="pl-2 mt-1.5">
+        <View className="pl-2 pt-5">
           <Text className="text-sm text-black">
             By Selecting Agree & Continue, I agree with{' '}
             <Text
