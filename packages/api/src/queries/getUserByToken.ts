@@ -10,12 +10,13 @@ type GetUserByTokenType = z.infer<typeof getUserByTokenInput>;
 
 export const getUserByToken = async ({ jwt }: GetUserByTokenType) => {
   getUserByTokenInput.parse({ jwt });
+  
   try {    
     const response = await api.get<Session>('/auth/getUserFromToken', {
       headers: {
         accept: 'application/json',
         'Content-Type': 'application/json',
-        // authorization: `Bearer ${jwt}`,
+        authorization: `Bearer ${jwt}`,
       },
     });
   return response.data;
